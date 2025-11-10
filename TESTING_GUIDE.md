@@ -18,12 +18,14 @@ npm run test:coverage
 ## Test Coverage
 
 ### Authentication Tests (`auth.test.ts`)
+
 - ✅ Email format validation
 - ✅ Password strength requirements
 - ✅ Missing required fields
 - ✅ Login field validation
 
 ### Product Tests (`product.test.ts`)
+
 - ✅ Authorization checks (admin vs user vs public)
 - ✅ Authentication requirements
 - ✅ Product data validation
@@ -32,6 +34,7 @@ npm run test:coverage
 - ✅ Non-existent product handling
 
 ### Order Tests (`order.test.ts`)
+
 - ✅ Empty order array validation
 - ✅ Invalid quantity validation
 - ✅ Missing product ID validation
@@ -41,6 +44,7 @@ npm run test:coverage
 ## Test Structure
 
 All tests use:
+
 - **Jest** as the test framework
 - **Supertest** for HTTP assertion testing
 - **Mocked database** connections to avoid real database dependencies

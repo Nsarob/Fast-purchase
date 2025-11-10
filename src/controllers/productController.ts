@@ -2,6 +2,7 @@ import { Response, Request } from 'express';
 import pool from '../config/database';
 import { createResponse, createPaginatedResponse } from '../utils/response';
 import { AuthRequest } from '../middleware/auth';
+import { clearResourceCache } from '../middleware/cache';
 
 export const createProduct = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -67,6 +68,9 @@ export const createProduct = async (req: AuthRequest, res: Response): Promise<vo
     );
 
     const product = result.rows[0];
+
+    // Clear product cache when a new product is created
+    clearResourceCache('products');
 
     res.status(201).json(
       createResponse(true, 'Product created successfully', {
@@ -195,6 +199,9 @@ export const updateProduct = async (req: AuthRequest, res: Response): Promise<vo
     );
 
     const product = result.rows[0];
+
+    // Clear product cache when a product is updated
+    clearResourceCache('products');
 
     res.status(200).json(
       createResponse(true, 'Product updated successfully', {
@@ -378,6 +385,9 @@ export const deleteProduct = async (req: AuthRequest, res: Response): Promise<vo
 
     // Delete product
     await pool.query('DELETE FROM products WHERE id = $1', [id]);
+
+    // Clear product cache when a product is deleted
+    clearResourceCache('products');
 
     res.status(200).json(
       createResponse(true, 'Product deleted successfully', {

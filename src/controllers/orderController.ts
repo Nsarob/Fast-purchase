@@ -151,3 +151,70 @@ export const placeOrder = async (req: AuthRequest, res: Response): Promise<void>
     client.release();
   }
 };
+
+export const getOrderHistory = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+
+    // Get all orders for the user
+    const ordersResult = await pool.query(
+      `SELECT id, user_id, description, total_price, status, created_at, updated_at 
+       FROM orders 
+       WHERE user_id = $1 
+       ORDER BY created_at DESC`,
+      [userId]
+    );
+
+    if (ordersResult.rows.length === 0) {
+      res.status(200).json(
+        createResponse(true, 'No orders found', {
+          orders: [],
+        })
+      );
+      return;
+    }
+
+    // Get order items for each order
+    const ordersWithItems = await Promise.all(
+      ordersResult.rows.map(async (order) => {
+        const itemsResult = await pool.query(
+          `SELECT oi.id, oi.product_id, oi.quantity, oi.price, p.name as product_name
+           FROM order_items oi
+           LEFT JOIN products p ON oi.product_id = p.id
+           WHERE oi.order_id = $1`,
+          [order.id]
+        );
+
+        return {
+          orderId: order.id,
+          description: order.description,
+          totalPrice: parseFloat(order.total_price),
+          status: order.status,
+          createdAt: order.created_at,
+          updatedAt: order.updated_at,
+          items: itemsResult.rows.map((item) => ({
+            productId: item.product_id,
+            productName: item.product_name,
+            quantity: item.quantity,
+            price: parseFloat(item.price),
+            itemTotal: parseFloat(item.price) * item.quantity,
+          })),
+        };
+      })
+    );
+
+    res.status(200).json(
+      createResponse(true, 'Order history retrieved successfully', {
+        orders: ordersWithItems,
+        totalOrders: ordersWithItems.length,
+      })
+    );
+  } catch (error) {
+    console.error('Get order history error:', error);
+    res.status(500).json(
+      createResponse(false, 'Internal server error', undefined, [
+        'An error occurred while retrieving order history',
+      ])
+    );
+  }
+};

@@ -157,8 +157,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Generate JWT token
-    const jwtSecret = process.env.JWT_SECRET || 'default_secret';
-    const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '24h';
+    const jwtSecret: string = process.env.JWT_SECRET || 'default_secret';
+    const jwtExpiresIn: string = process.env.JWT_EXPIRES_IN || '24h';
 
     const token = jwt.sign(
       {
@@ -169,7 +169,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       jwtSecret,
       {
         expiresIn: jwtExpiresIn,
-      }
+      } as jwt.SignOptions
     );
 
     res.status(200).json(

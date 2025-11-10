@@ -23,22 +23,26 @@ Before running this project, make sure you have:
 ## 🛠️ Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/Nsarob/Fast-purchase.git
 cd Fast-purchase
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
 3. Set up environment variables:
+
 ```bash
 cp .env.example .env
 ```
 
 Edit the `.env` file with your configuration:
+
 ```
 PORT=3000
 NODE_ENV=development
@@ -56,6 +60,7 @@ JWT_EXPIRES_IN=24h
 ```
 
 4. Create PostgreSQL database:
+
 ```bash
 psql -U postgres
 CREATE DATABASE fast_purchase;
@@ -65,11 +70,13 @@ CREATE DATABASE fast_purchase;
 ## 🏃‍♂️ Running the Application
 
 ### Development mode (with hot reload):
+
 ```bash
 npm run dev
 ```
 
 ### Production mode:
+
 ```bash
 npm run build
 npm start
@@ -80,10 +87,12 @@ The API will be available at `http://localhost:3000`
 ## 📚 API Endpoints
 
 ### Authentication
+
 - `POST /auth/register` - Register a new user
 - `POST /auth/login` - Login and get JWT token
 
 ### Products
+
 - `GET /products` - Get all products (with pagination & search)
 - `GET /products/:id` - Get product by ID
 - `POST /products` - Create product (Admin only)
@@ -91,6 +100,7 @@ The API will be available at `http://localhost:3000`
 - `DELETE /products/:id` - Delete product (Admin only)
 
 ### Orders
+
 - `POST /orders` - Place a new order (Authenticated users)
 - `GET /orders` - Get user's order history (Authenticated users)
 
@@ -132,6 +142,7 @@ Fast-purchase/
 ## 🛡️ Error Handling
 
 The API uses consistent error responses:
+
 ```json
 {
   "success": false,
@@ -148,6 +159,7 @@ The API uses consistent error responses:
 ## 📝 User Stories Implementation
 
 This project implements 10 user stories:
+
 1. ✅ User Signup
 2. ✅ User Login
 3. ✅ Create Product (Admin)
@@ -166,8 +178,6 @@ This project implements 10 user stories:
 3. Commit your changes with meaningful messages
 4. Push to your branch
 5. Create a Pull Request
-
-
 
 ## 👨‍💻 Author
 

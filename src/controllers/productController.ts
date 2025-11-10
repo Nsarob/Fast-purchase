@@ -258,7 +258,17 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
     // Get pagination parameters from query string
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = parseInt(req.query.pageSize as string) || 10;
+    
+    // Advanced search and filtering parameters
     const searchQuery = (req.query.search as string) || '';
+    const category = (req.query.category as string) || '';
+    const minPrice = req.query.minPrice ? parseFloat(req.query.minPrice as string) : undefined;
+    const maxPrice = req.query.maxPrice ? parseFloat(req.query.maxPrice as string) : undefined;
+    const inStock = req.query.inStock ? req.query.inStock === 'true' : undefined;
+    
+    // Sorting parameters
+    const sortBy = (req.query.sortBy as string) || 'createdAt';
+    const sortOrder = (req.query.sortOrder as string)?.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
 
     // Validate pagination parameters
     if (page < 1) {
@@ -279,35 +289,116 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
+    // Validate sortBy field
+    const allowedSortFields = ['name', 'price', 'stock', 'createdAt', 'category'];
+    if (!allowedSortFields.includes(sortBy)) {
+      res.status(400).json(
+        createResponse(false, 'Invalid sort field', undefined, [
+          `Sort field must be one of: ${allowedSortFields.join(', ')}`,
+        ])
+      );
+      return;
+    }
+
+    // Validate price range
+    if (minPrice !== undefined && minPrice < 0) {
+      res.status(400).json(
+        createResponse(false, 'Invalid price range', undefined, [
+          'Minimum price must be non-negative',
+        ])
+      );
+      return;
+    }
+
+    if (maxPrice !== undefined && maxPrice < 0) {
+      res.status(400).json(
+        createResponse(false, 'Invalid price range', undefined, [
+          'Maximum price must be non-negative',
+        ])
+      );
+      return;
+    }
+
+    if (minPrice !== undefined && maxPrice !== undefined && minPrice > maxPrice) {
+      res.status(400).json(
+        createResponse(false, 'Invalid price range', undefined, [
+          'Minimum price cannot be greater than maximum price',
+        ])
+      );
+      return;
+    }
+
     // Calculate offset
     const offset = (page - 1) * pageSize;
 
-    // Build query based on search parameter
+    // Build query with advanced filters
     let countQuery = 'SELECT COUNT(*) FROM products';
     let productsQuery = `SELECT id, name, description, price, stock, category, images, created_at, updated_at 
        FROM products`;
     const queryParams: any[] = [];
+    const whereClauses: string[] = [];
+    let paramCount = 1;
 
-    // Add search filter if search query is provided
+    // Add search filter (search in both name and description)
     if (searchQuery) {
-      countQuery += ' WHERE LOWER(name) LIKE LOWER($1)';
-      productsQuery += ' WHERE LOWER(name) LIKE LOWER($1)';
+      whereClauses.push(`(LOWER(name) LIKE LOWER($${paramCount}) OR LOWER(description) LIKE LOWER($${paramCount}))`);
       queryParams.push(`%${searchQuery}%`);
+      paramCount++;
+    }
+
+    // Add category filter
+    if (category) {
+      whereClauses.push(`LOWER(category) = LOWER($${paramCount})`);
+      queryParams.push(category);
+      paramCount++;
+    }
+
+    // Add price range filters
+    if (minPrice !== undefined) {
+      whereClauses.push(`price >= $${paramCount}`);
+      queryParams.push(minPrice);
+      paramCount++;
+    }
+
+    if (maxPrice !== undefined) {
+      whereClauses.push(`price <= $${paramCount}`);
+      queryParams.push(maxPrice);
+      paramCount++;
+    }
+
+    // Add stock availability filter
+    if (inStock !== undefined) {
+      if (inStock) {
+        whereClauses.push('stock > 0');
+      } else {
+        whereClauses.push('stock = 0');
+      }
+    }
+
+    // Add WHERE clause if filters exist
+    if (whereClauses.length > 0) {
+      const whereClause = ' WHERE ' + whereClauses.join(' AND ');
+      countQuery += whereClause;
+      productsQuery += whereClause;
     }
 
     // Get total count of products (filtered or all)
-    const countResult = await pool.query(countQuery, searchQuery ? queryParams : []);
+    const countResult = await pool.query(countQuery, queryParams);
     const totalProducts = parseInt(countResult.rows[0].count);
 
+    // Convert sortBy to database column name
+    const sortColumnMap: { [key: string]: string } = {
+      name: 'name',
+      price: 'price',
+      stock: 'stock',
+      createdAt: 'created_at',
+      category: 'category',
+    };
+    const sortColumn = sortColumnMap[sortBy];
+
     // Add ordering and pagination
-    productsQuery += ' ORDER BY created_at DESC LIMIT $' + (searchQuery ? '2' : '1') + 
-                      ' OFFSET $' + (searchQuery ? '3' : '2');
-    
-    if (searchQuery) {
-      queryParams.push(pageSize, offset);
-    } else {
-      queryParams.push(pageSize, offset);
-    }
+    productsQuery += ` ORDER BY ${sortColumn} ${sortOrder} LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+    queryParams.push(pageSize, offset);
 
     // Get products for current page
     const productsResult = await pool.query(productsQuery, queryParams);
@@ -325,12 +416,23 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       updatedAt: product.updated_at,
     }));
 
+    // Build response message
+    let message = 'Products retrieved successfully';
+    const filters: string[] = [];
+    if (searchQuery) filters.push(`search: "${searchQuery}"`);
+    if (category) filters.push(`category: "${category}"`);
+    if (minPrice !== undefined) filters.push(`minPrice: ${minPrice}`);
+    if (maxPrice !== undefined) filters.push(`maxPrice: ${maxPrice}`);
+    if (inStock !== undefined) filters.push(`inStock: ${inStock}`);
+    
+    if (filters.length > 0) {
+      message = `Products retrieved with filters (${filters.join(', ')})`;
+    }
+
     res.status(200).json(
       createPaginatedResponse(
         true,
-        searchQuery 
-          ? `Products matching "${searchQuery}" retrieved successfully`
-          : 'Products retrieved successfully',
+        message,
         products,
         page,
         pageSize,

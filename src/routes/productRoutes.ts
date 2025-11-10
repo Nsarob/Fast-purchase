@@ -11,26 +11,70 @@ const router = Router();
  * /products:
  *   get:
  *     tags: [Products]
- *     summary: Get all products with pagination
- *     description: Retrieve a paginated list of products with optional search (cached for 5 minutes)
+ *     summary: Get all products with advanced search and filtering
+ *     description: Retrieve a paginated list of products with advanced search, filtering, and sorting capabilities (cached for 5 minutes)
  *     parameters:
  *       - in: query
  *         name: page
  *         schema:
  *           type: integer
  *           default: 1
+ *           minimum: 1
  *         description: Page number
  *       - in: query
  *         name: pageSize
  *         schema:
  *           type: integer
  *           default: 10
- *         description: Number of items per page
+ *           minimum: 1
+ *           maximum: 100
+ *         description: Number of items per page (1-100)
  *       - in: query
  *         name: search
  *         schema:
  *           type: string
- *         description: Search products by name (case-insensitive)
+ *         description: Search products by name or description (case-insensitive)
+ *         example: laptop
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *         description: Filter by category (case-insensitive)
+ *         example: Electronics
+ *       - in: query
+ *         name: minPrice
+ *         schema:
+ *           type: number
+ *           minimum: 0
+ *         description: Minimum price filter
+ *         example: 100
+ *       - in: query
+ *         name: maxPrice
+ *         schema:
+ *           type: number
+ *           minimum: 0
+ *         description: Maximum price filter
+ *         example: 2000
+ *       - in: query
+ *         name: inStock
+ *         schema:
+ *           type: boolean
+ *         description: Filter by stock availability (true = in stock, false = out of stock)
+ *         example: true
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [name, price, stock, createdAt, category]
+ *           default: createdAt
+ *         description: Sort by field
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Sort order (ascending or descending)
  *     responses:
  *       200:
  *         description: Products retrieved successfully
@@ -43,24 +87,22 @@ const router = Router();
  *                   type: boolean
  *                 message:
  *                   type: string
- *                 data:
- *                   type: object
- *                   properties:
- *                     products:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/Product'
- *                     pagination:
- *                       type: object
- *                       properties:
- *                         currentPage:
- *                           type: integer
- *                         totalPages:
- *                           type: integer
- *                         totalProducts:
- *                           type: integer
- *                         pageSize:
- *                           type: integer
+ *                 object:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Product'
+ *                 pageNumber:
+ *                   type: integer
+ *                 pageSize:
+ *                   type: integer
+ *                 totalSize:
+ *                   type: integer
+ *       400:
+ *         description: Invalid parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.get('/', cacheMiddleware(300), getProducts);
 

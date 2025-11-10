@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import pool from '../config/database';
 import { createResponse } from '../utils/response';
 import { validateEmail, validateUsername, validatePassword } from '../utils/validation';
@@ -97,6 +98,96 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json(
       createResponse(false, 'Internal server error', undefined, [
         'An error occurred during registration',
+      ])
+    );
+  }
+};
+
+export const login = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate required fields
+    if (!email || !password) {
+      res.status(400).json(
+        createResponse(false, 'All fields are required', undefined, [
+          'Email and password are required',
+        ])
+      );
+      return;
+    }
+
+    // Validate email format
+    if (!validateEmail(email)) {
+      res.status(400).json(
+        createResponse(false, 'Validation failed', undefined, [
+          'Invalid email address format',
+        ])
+      );
+      return;
+    }
+
+    // Find user by email
+    const result = await pool.query(
+      'SELECT id, username, email, password, role FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(401).json(
+        createResponse(false, 'Authentication failed', undefined, [
+          'Invalid credentials',
+        ])
+      );
+      return;
+    }
+
+    const user = result.rows[0];
+
+    // Compare passwords
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      res.status(401).json(
+        createResponse(false, 'Authentication failed', undefined, [
+          'Invalid credentials',
+        ])
+      );
+      return;
+    }
+
+    // Generate JWT token
+    const jwtSecret = process.env.JWT_SECRET || 'default_secret';
+    const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '24h';
+
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        username: user.username,
+        role: user.role,
+      },
+      jwtSecret,
+      {
+        expiresIn: jwtExpiresIn,
+      }
+    );
+
+    res.status(200).json(
+      createResponse(true, 'Login successful', {
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+        },
+      })
+    );
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json(
+      createResponse(false, 'Internal server error', undefined, [
+        'An error occurred during login',
       ])
     );
   }

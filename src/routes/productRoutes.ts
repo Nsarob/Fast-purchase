@@ -3,6 +3,7 @@ import { createProduct, updateProduct, getProducts, getProductById, deleteProduc
 import { authenticate, authorize } from '../middleware/auth';
 import { cacheMiddleware } from '../middleware/cache';
 import { upload } from '../config/multer';
+import { readLimiter, createLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -103,8 +104,14 @@ const router = Router();
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ *       429:
+ *         description: Too many requests - Rate limit exceeded
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
-router.get('/', cacheMiddleware(300), getProducts);
+router.get('/', readLimiter, cacheMiddleware(300), getProducts);
 
 /**
  * @swagger
@@ -144,8 +151,14 @@ router.get('/', cacheMiddleware(300), getProducts);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ *       429:
+ *         description: Too many requests - Rate limit exceeded
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
-router.get('/:id', cacheMiddleware(300), getProductById);
+router.get('/:id', readLimiter, cacheMiddleware(300), getProductById);
 
 /**
  * @swagger
@@ -206,8 +219,14 @@ router.get('/:id', cacheMiddleware(300), getProductById);
  *         description: Unauthorized
  *       403:
  *         description: Forbidden - Admin only
+ *       429:
+ *         description: Too many requests - Rate limit exceeded
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
-router.post('/', authenticate, authorize('admin'), upload.array('images', 5), createProduct);
+router.post('/', createLimiter, authenticate, authorize('admin'), upload.array('images', 5), createProduct);
 
 /**
  * @swagger
@@ -253,8 +272,14 @@ router.post('/', authenticate, authorize('admin'), upload.array('images', 5), cr
  *         description: Forbidden - Admin only
  *       404:
  *         description: Product not found
+ *       429:
+ *         description: Too many requests - Rate limit exceeded
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
-router.put('/:id', authenticate, authorize('admin'), updateProduct);
+router.put('/:id', createLimiter, authenticate, authorize('admin'), updateProduct);
 
 /**
  * @swagger
@@ -281,7 +306,13 @@ router.put('/:id', authenticate, authorize('admin'), updateProduct);
  *         description: Forbidden - Admin only
  *       404:
  *         description: Product not found
+ *       429:
+ *         description: Too many requests - Rate limit exceeded
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:id', authenticate, authorize('admin'), deleteProduct);
+router.delete('/:id', createLimiter, authenticate, authorize('admin'), deleteProduct);
 
 export default router;

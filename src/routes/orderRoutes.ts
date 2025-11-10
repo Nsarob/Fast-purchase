@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
 import { placeOrder, getOrderHistory } from '../controllers/orderController';
+import { orderLimiter, readLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -58,8 +59,14 @@ const router = Router();
  *         description: Unauthorized
  *       404:
  *         description: Product not found
+ *       429:
+ *         description: Too many requests - Rate limit exceeded
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
-router.post('/', authenticate, placeOrder);
+router.post('/', orderLimiter, authenticate, placeOrder);
 
 /**
  * @swagger
@@ -93,7 +100,13 @@ router.post('/', authenticate, placeOrder);
  *                       type: integer
  *       401:
  *         description: Unauthorized
+ *       429:
+ *         description: Too many requests - Rate limit exceeded
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
-router.get('/', authenticate, getOrderHistory);
+router.get('/', readLimiter, authenticate, getOrderHistory);
 
 export default router;

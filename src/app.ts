@@ -6,6 +6,7 @@ import swaggerSpec from './config/swagger';
 import authRoutes from './routes/authRoutes';
 import productRoutes from './routes/productRoutes';
 import orderRoutes from './routes/orderRoutes';
+import { generalLimiter } from './middleware/rateLimiter';
 
 dotenv.config();
 
@@ -15,6 +16,11 @@ const app: Application = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Apply general rate limiter to all routes
+app.use('/auth', generalLimiter);
+app.use('/products', generalLimiter);
+app.use('/orders', generalLimiter);
 
 // API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {

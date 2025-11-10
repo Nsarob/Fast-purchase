@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { register, login } from '../controllers/authController';
+import { authLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -66,8 +67,14 @@ const router = Router();
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ *       429:
+ *         description: Too many requests - Rate limit exceeded
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
-router.post('/register', register);
+router.post('/register', authLimiter, register);
 
 /**
  * @swagger
@@ -128,7 +135,13 @@ router.post('/register', register);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ *       429:
+ *         description: Too many requests - Rate limit exceeded
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
-router.post('/login', login);
+router.post('/login', authLimiter, login);
 
 export default router;

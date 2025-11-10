@@ -311,3 +311,87 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
     );
   }
 };
+
+export const getProductById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // Get product by ID
+    const result = await pool.query(
+      `SELECT id, name, description, price, stock, category, user_id, created_at, updated_at 
+       FROM products 
+       WHERE id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json(
+        createResponse(false, 'Product not found', undefined, [
+          'No product found with the specified ID',
+        ])
+      );
+      return;
+    }
+
+    const product = result.rows[0];
+
+    res.status(200).json(
+      createResponse(true, 'Product retrieved successfully', {
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        price: parseFloat(product.price),
+        stock: product.stock,
+        category: product.category,
+        userId: product.user_id,
+        createdAt: product.created_at,
+        updatedAt: product.updated_at,
+      })
+    );
+  } catch (error) {
+    console.error('Get product by ID error:', error);
+    res.status(500).json(
+      createResponse(false, 'Internal server error', undefined, [
+        'An error occurred while retrieving the product',
+      ])
+    );
+  }
+};
+
+export const deleteProduct = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // Check if product exists
+    const checkProduct = await pool.query('SELECT id, name FROM products WHERE id = $1', [id]);
+
+    if (checkProduct.rows.length === 0) {
+      res.status(404).json(
+        createResponse(false, 'Product not found', undefined, [
+          'No product found with the specified ID',
+        ])
+      );
+      return;
+    }
+
+    const productName = checkProduct.rows[0].name;
+
+    // Delete product
+    await pool.query('DELETE FROM products WHERE id = $1', [id]);
+
+    res.status(200).json(
+      createResponse(true, 'Product deleted successfully', {
+        id,
+        name: productName,
+        message: `Product "${productName}" has been permanently deleted`,
+      })
+    );
+  } catch (error) {
+    console.error('Delete product error:', error);
+    res.status(500).json(
+      createResponse(false, 'Internal server error', undefined, [
+        'An error occurred while deleting the product',
+      ])
+    );
+  }
+};

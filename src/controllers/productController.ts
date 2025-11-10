@@ -224,6 +224,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
     // Get pagination parameters from query string
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const searchQuery = (req.query.search as string) || '';
 
     // Validate pagination parameters
     if (page < 1) {
@@ -247,21 +248,35 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
     // Calculate offset
     const offset = (page - 1) * pageSize;
 
-    // Get total count of products
-    const countResult = await pool.query('SELECT COUNT(*) FROM products');
+    // Build query based on search parameter
+    let countQuery = 'SELECT COUNT(*) FROM products';
+    let productsQuery = `SELECT id, name, description, price, stock, category, created_at, updated_at 
+       FROM products`;
+    const queryParams: any[] = [];
+
+    // Add search filter if search query is provided
+    if (searchQuery) {
+      countQuery += ' WHERE LOWER(name) LIKE LOWER($1)';
+      productsQuery += ' WHERE LOWER(name) LIKE LOWER($1)';
+      queryParams.push(`%${searchQuery}%`);
+    }
+
+    // Get total count of products (filtered or all)
+    const countResult = await pool.query(countQuery, searchQuery ? queryParams : []);
     const totalProducts = parseInt(countResult.rows[0].count);
 
-    // Calculate total pages
-    const totalPages = Math.ceil(totalProducts / pageSize);
+    // Add ordering and pagination
+    productsQuery += ' ORDER BY created_at DESC LIMIT $' + (searchQuery ? '2' : '1') + 
+                      ' OFFSET $' + (searchQuery ? '3' : '2');
+    
+    if (searchQuery) {
+      queryParams.push(pageSize, offset);
+    } else {
+      queryParams.push(pageSize, offset);
+    }
 
     // Get products for current page
-    const productsResult = await pool.query(
-      `SELECT id, name, description, price, stock, category, created_at, updated_at 
-       FROM products 
-       ORDER BY created_at DESC 
-       LIMIT $1 OFFSET $2`,
-      [pageSize, offset]
-    );
+    const productsResult = await pool.query(productsQuery, queryParams);
 
     // Format products
     const products = productsResult.rows.map((product) => ({
@@ -278,7 +293,9 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
     res.status(200).json(
       createPaginatedResponse(
         true,
-        'Products retrieved successfully',
+        searchQuery 
+          ? `Products matching "${searchQuery}" retrieved successfully`
+          : 'Products retrieved successfully',
         products,
         page,
         pageSize,

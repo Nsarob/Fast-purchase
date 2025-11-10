@@ -71,6 +71,11 @@ const options: swaggerJsdoc.Options = {
             stock: { type: 'integer' },
             category: { type: 'string' },
             userId: { type: 'string', format: 'uuid' },
+            images: { 
+              type: 'array', 
+              items: { type: 'string', format: 'uri' },
+              description: 'Array of Cloudinary image URLs'
+            },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
           },

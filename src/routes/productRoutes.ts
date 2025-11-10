@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { createProduct, updateProduct, getProducts, getProductById, deleteProduct } from '../controllers/productController';
 import { authenticate, authorize } from '../middleware/auth';
 import { cacheMiddleware } from '../middleware/cache';
+import { upload } from '../config/multer';
 
 const router = Router();
 
@@ -110,13 +111,13 @@ router.get('/:id', cacheMiddleware(300), getProductById);
  *   post:
  *     tags: [Products]
  *     summary: Create a new product (Admin only)
- *     description: Create a new product - requires admin authentication
+ *     description: Create a new product with optional images - requires admin authentication
  *     security:
  *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -147,6 +148,13 @@ router.get('/:id', cacheMiddleware(300), getProductById);
  *               category:
  *                 type: string
  *                 example: Electronics
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 maxItems: 5
+ *                 description: Product images (max 5, 5MB each, JPEG/PNG/GIF/WebP)
  *     responses:
  *       201:
  *         description: Product created successfully
@@ -157,7 +165,7 @@ router.get('/:id', cacheMiddleware(300), getProductById);
  *       403:
  *         description: Forbidden - Admin only
  */
-router.post('/', authenticate, authorize('admin'), createProduct);
+router.post('/', authenticate, authorize('admin'), upload.array('images', 5), createProduct);
 
 /**
  * @swagger

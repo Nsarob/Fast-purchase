@@ -33,6 +33,7 @@ const createTables = async () => {
         price DECIMAL(10, 2) NOT NULL,
         stock INTEGER NOT NULL DEFAULT 0,
         category VARCHAR(100) NOT NULL,
+        images TEXT[], -- Array of image URLs from Cloudinary
         user_id UUID REFERENCES users(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

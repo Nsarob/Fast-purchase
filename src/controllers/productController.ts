@@ -3,11 +3,21 @@ import pool from '../config/database';
 import { createResponse, createPaginatedResponse } from '../utils/response';
 import { AuthRequest } from '../middleware/auth';
 import { clearResourceCache } from '../middleware/cache';
+import { uploadMultipleImages, deleteMultipleImages } from '../utils/imageUpload';
 
 export const createProduct = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { name, description, price, stock, category } = req.body;
+    let { name, description, price, stock, category } = req.body;
     const userId = req.user?.userId;
+    const files = req.files as Express.Multer.File[];
+
+    // Parse numeric fields from form-data (they come as strings)
+    if (typeof price === 'string') {
+      price = parseFloat(price);
+    }
+    if (typeof stock === 'string') {
+      stock = parseInt(stock, 10);
+    }
 
     // Validate required fields
     if (!name || !description || price === undefined || stock === undefined || !category) {
@@ -59,12 +69,28 @@ export const createProduct = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    // Upload images to Cloudinary if provided
+    let imageUrls: string[] = [];
+    if (files && files.length > 0) {
+      try {
+        imageUrls = await uploadMultipleImages(files, 'products');
+      } catch (uploadError) {
+        console.error('Image upload error:', uploadError);
+        res.status(500).json(
+          createResponse(false, 'Image upload failed', undefined, [
+            'Failed to upload images to cloud storage',
+          ])
+        );
+        return;
+      }
+    }
+
     // Insert product into database
     const result = await pool.query(
-      `INSERT INTO products (name, description, price, stock, category, user_id) 
-       VALUES ($1, $2, $3, $4, $5, $6) 
-       RETURNING id, name, description, price, stock, category, user_id, created_at, updated_at`,
-      [name, description, price, stock, category, userId]
+      `INSERT INTO products (name, description, price, stock, category, images, user_id) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) 
+       RETURNING id, name, description, price, stock, category, images, user_id, created_at, updated_at`,
+      [name, description, price, stock, category, imageUrls, userId]
     );
 
     const product = result.rows[0];
@@ -80,6 +106,7 @@ export const createProduct = async (req: AuthRequest, res: Response): Promise<vo
         price: parseFloat(product.price),
         stock: product.stock,
         category: product.category,
+        images: product.images || [],
         userId: product.user_id,
         createdAt: product.created_at,
         updatedAt: product.updated_at,
@@ -257,7 +284,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
 
     // Build query based on search parameter
     let countQuery = 'SELECT COUNT(*) FROM products';
-    let productsQuery = `SELECT id, name, description, price, stock, category, created_at, updated_at 
+    let productsQuery = `SELECT id, name, description, price, stock, category, images, created_at, updated_at 
        FROM products`;
     const queryParams: any[] = [];
 
@@ -293,6 +320,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       price: parseFloat(product.price),
       stock: product.stock,
       category: product.category,
+      images: product.images || [],
       createdAt: product.created_at,
       updatedAt: product.updated_at,
     }));
@@ -325,7 +353,7 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
 
     // Get product by ID
     const result = await pool.query(
-      `SELECT id, name, description, price, stock, category, user_id, created_at, updated_at 
+      `SELECT id, name, description, price, stock, category, images, user_id, created_at, updated_at 
        FROM products 
        WHERE id = $1`,
       [id]
@@ -350,6 +378,7 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
         price: parseFloat(product.price),
         stock: product.stock,
         category: product.category,
+        images: product.images || [],
         userId: product.user_id,
         createdAt: product.created_at,
         updatedAt: product.updated_at,

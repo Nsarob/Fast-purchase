@@ -1,6 +1,7 @@
 import express, { Application } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import authRoutes from './routes/authRoutes';
 
 dotenv.config();
 
@@ -20,7 +21,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Routes will be added here
+// Routes
+app.use('/auth', authRoutes);
 
 // 404 handler
 app.use((req, res) => {

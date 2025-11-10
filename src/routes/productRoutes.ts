@@ -1,8 +1,11 @@
 import { Router } from 'express';
-import { createProduct, updateProduct } from '../controllers/productController';
+import { createProduct, updateProduct, getProducts } from '../controllers/productController';
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
+
+// Public - Get all products with pagination
+router.get('/', getProducts);
 
 // Admin only - Create product
 router.post('/', authenticate, authorize('admin'), createProduct);

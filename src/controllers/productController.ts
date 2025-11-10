@@ -1,6 +1,6 @@
-import { Response } from 'express';
+import { Response, Request } from 'express';
 import pool from '../config/database';
-import { createResponse } from '../utils/response';
+import { createResponse, createPaginatedResponse } from '../utils/response';
 import { AuthRequest } from '../middleware/auth';
 
 export const createProduct = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -214,6 +214,82 @@ export const updateProduct = async (req: AuthRequest, res: Response): Promise<vo
     res.status(500).json(
       createResponse(false, 'Internal server error', undefined, [
         'An error occurred while updating the product',
+      ])
+    );
+  }
+};
+
+export const getProducts = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Get pagination parameters from query string
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = parseInt(req.query.pageSize as string) || 10;
+
+    // Validate pagination parameters
+    if (page < 1) {
+      res.status(400).json(
+        createResponse(false, 'Invalid page number', undefined, [
+          'Page number must be greater than 0',
+        ])
+      );
+      return;
+    }
+
+    if (pageSize < 1 || pageSize > 100) {
+      res.status(400).json(
+        createResponse(false, 'Invalid page size', undefined, [
+          'Page size must be between 1 and 100',
+        ])
+      );
+      return;
+    }
+
+    // Calculate offset
+    const offset = (page - 1) * pageSize;
+
+    // Get total count of products
+    const countResult = await pool.query('SELECT COUNT(*) FROM products');
+    const totalProducts = parseInt(countResult.rows[0].count);
+
+    // Calculate total pages
+    const totalPages = Math.ceil(totalProducts / pageSize);
+
+    // Get products for current page
+    const productsResult = await pool.query(
+      `SELECT id, name, description, price, stock, category, created_at, updated_at 
+       FROM products 
+       ORDER BY created_at DESC 
+       LIMIT $1 OFFSET $2`,
+      [pageSize, offset]
+    );
+
+    // Format products
+    const products = productsResult.rows.map((product) => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: parseFloat(product.price),
+      stock: product.stock,
+      category: product.category,
+      createdAt: product.created_at,
+      updatedAt: product.updated_at,
+    }));
+
+    res.status(200).json(
+      createPaginatedResponse(
+        true,
+        'Products retrieved successfully',
+        products,
+        page,
+        pageSize,
+        totalProducts
+      )
+    );
+  } catch (error) {
+    console.error('Get products error:', error);
+    res.status(500).json(
+      createResponse(false, 'Internal server error', undefined, [
+        'An error occurred while retrieving products',
       ])
     );
   }
